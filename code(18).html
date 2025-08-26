@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario Interactivo</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .quiz-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        .instructions {
+            background-color: #eef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 5px solid #55a;
+        }
+        .quiz-image-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .quiz-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .question-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .question-text {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .options-list {
+            list-style: none;
+            padding: 0;
+        }
+        /* --- MODIFICACIONES AQUÍ --- */
+        .options-list li {
+            margin-bottom: 10px;
+            display: flex; /* Usar flexbox para alinear items horizontalmente */
+            align-items: center; /* Centrar items verticalmente en la línea */
+        }
+
+        .options-list input[type="radio"] {
+            margin-right: 10px; /* Espacio entre el radio y el texto */
+            flex-shrink: 0; /* Evita que el botón de radio se encoja */
+            /* vertical-align: middle; ya no es tan crucial con flexbox, pero no daña */
+        }
+
+        .options-list label {
+            cursor: pointer;
+            /* display: block; <-- REMOVER O COMENTAR ESTA LÍNEA */
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+            flex-grow: 1; /* Permite que la etiqueta ocupe el espacio restante */
+        }
+        /* --- FIN DE MODIFICACIONES --- */
+
+        .options-list label:hover {
+            background-color: #f0f0f0;
+        }
+        .feedback {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .feedback.correct {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .feedback.incorrect {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .navigation-buttons {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .results-container {
+            text-align: center;
+            padding: 20px;
+            background-color: #e9f7ef;
+            border-radius: 5px;
+            border: 1px solid #a9d1b9;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="quiz-container">
+        <h1 id="quiz-title"></h1>
+        <p class="instructions" id="quiz-instructions"></p>
+
+        <div class="quiz-image-container">
+            <img src="https://raw.githubusercontent.com/vhleyvag/brazo/refs/heads/main/brazo_02.png" alt="Diagrama del brazo mecánico y gráfica de altura" class="quiz-image">
+        </div>
+
+        <div id="question-area">
+            <!-- Questions will be loaded here by JavaScript -->
+        </div>
+
+        <div class="navigation-buttons">
+            <button id="submit-answer" onclick="submitAnswer()" disabled>Enviar Respuesta</button>
+            <button id="next-question" onclick="loadNextQuestion()" style="display:none;">Siguiente Pregunta</button>
+        </div>
+
+        <div id="results-area" class="results-container" style="display:none;">
+            <h2>Resultados del Cuestionario</h2>
+            <p id="score-text"></p>
+            <button onclick="restartQuiz()">Reiniciar Cuestionario</button>
+        </div>
+    </div>
+
+    <script>
+        const quizData = {
+          "title": "Diagnóstico inicial: comprensión del mecanismo y análisis trigonométrico",
+          "instructions": "Observa la imagen del brazo mecánico y su gráfica de altura. Luego, responde las siguientes preguntas. Al terminar, recibirás retroalimentación sobre cada respuesta.",
+          "questions": [
+            {
+              "question": "¿Qué representa el valor h₂ = 6.67 en la imagen?",
+              "options": [
+                {
+                  "text": "La altura total desde el suelo hasta la mano del brazo",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Eso sería la altura total, que incluye también h₁."
+                },
+                {
+                  "text": "La distancia desde la base del soporte hasta la mano",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Esa distancia incluye h₁, pero h₂ representa solo la parte vertical generada por el brazo."
+                },
+                {
+                  "text": "La altura vertical generada por el brazo al inclinarse",
+                  "isCorrect": true,
+                  "feedback": "¡Correcto! h₂ es la proyección vertical del brazo, calculada como L × sen(θ)."
+                },
+                {
+                  "text": "La longitud total del brazo",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. La longitud total del brazo es L = 9.4, no h₂."
+                }
+              ]
+            },
+            {
+              "question": "Según la gráfica, ¿qué tipo de relación existe entre el ángulo de rotación y la altura alcanzada?",
+              "options": [
+                {
+                  "text": "Lineal",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Si fuera lineal, la gráfica sería una recta."
+                },
+                {
+                  "text": "Exponencial",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. La curva no representa crecimiento exponencial."
+                },
+                {
+                  "text": "Cuadrática",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. No es una parábola."
+                },
+                {
+                  "text": "No lineal (trigonométrica)",
+                  "isCorrect": true,
+                  "feedback": "¡Correcto! La altura sigue una función seno: curva trigonométrica."
+                }
+              ]
+            },
+            {
+              "question": "¿Cuál es el valor de la altura total que alcanza el extremo del brazo en la posición actual?",
+              "options": [
+                {
+                  "text": "6.67 m",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Es solo la componente vertical h₂."
+                },
+                {
+                  "text": "2 m",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Es solo la altura del soporte h₁."
+                },
+                {
+                  "text": "8.67 m",
+                  "isCorrect": true,
+                  "feedback": "¡Correcto! Es la suma h₁ + h₂ = 2 + 6.67."
+                },
+                {
+                  "text": "9.4 m",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Esa es la longitud del brazo, no su altura alcanzada."
+                }
+              ]
+            },
+            {
+              "question": "El punto marcado en la gráfica (45.23°, 8.67) indica:",
+              "options": [
+                {
+                  "text": "La longitud del brazo",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. La longitud es una constante, no un punto en la gráfica."
+                },
+                {
+                  "text": "El ángulo total de rotación",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Representa un ángulo específico, no el total permitido."
+                },
+                {
+                  "text": "El punto en que la base y el brazo se cruzan",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Ese punto no está en la gráfica de altura."
+                },
+                {
+                  "text": "El valor del ángulo y la altura alcanzada por el extremo del brazo",
+                  "isCorrect": true,
+                  "feedback": "¡Correcto! El punto representa (θ, h) en la función altura vs. ángulo."
+                }
+              ]
+            },
+            {
+              "question": "¿Qué razón trigonométrica se usa para obtener h₂ a partir del ángulo y la longitud del brazo?",
+              "options": [
+                {
+                  "text": "Tangente",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. La tangente relaciona opuesto y adyacente, no hipotenusa."
+                },
+                {
+                  "text": "Seno",
+                  "isCorrect": true,
+                  "feedback": "¡Correcto! h₂ = L × sen(θ), usando la razón seno."
+                },
+                {
+                  "text": "Coseno",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. El coseno se usa para la proyección horizontal, no vertical."
+                },
+                {
+                  "text": "Secante",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. La secante es el inverso del coseno, y no se aplica aquí."
+                }
+              ]
+            },
+            {
+              "question": "Si se quisiera obtener el desplazamiento horizontal del extremo del brazo, ¿qué razón trigonométrica se usaría?",
+              "options": [
+                {
+                  "text": "Seno",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. El seno da la componente vertical, no horizontal."
+                },
+                {
+                  "text": "Tangente",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Tangente = opuesto / adyacente, no útil directamente aquí."
+                },
+                {
+                  "text": "Coseno",
+                  "isCorrect": true,
+                  "feedback": "¡Correcto! base = L × cos(θ), según la definición de coseno."
+                },
+                {
+                  "text": "Cotangente",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. Cotangente es poco usada en contextos prácticos como este."
+                }
+              ]
+            },
+            {
+              "question": "Según la imagen, ¿cuál de las siguientes afirmaciones es verdadera?",
+              "options": [
+                {
+                  "text": "El ángulo del brazo es mayor a 60°",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. El ángulo mostrado es 45.23°, menor a 60°."
+                },
+                {
+                  "text": "La altura total del brazo es igual a la longitud del brazo",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. La altura depende del ángulo, no siempre es igual a la longitud."
+                },
+                {
+                  "text": "La altura alcanzada por el brazo es una función del ángulo",
+                  "isCorrect": true,
+                  "feedback": "¡Correcto! Es una función trigonométrica: altura = L × sen(θ) + h₁."
+                },
+                {
+                  "text": "El brazo está en posición horizontal",
+                  "isCorrect": false,
+                  "feedback": "Incorrecto. La posición horizontal sería a 0°; aquí está a 45.23°."
+                }
+              ]
+            }
+          ]
+        };
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let questions = quizData.questions;
+
+        const quizTitleEl = document.getElementById('quiz-title');
+        const quizInstructionsEl = document.getElementById('quiz-instructions');
+        const questionAreaEl = document.getElementById('question-area');
+        const submitAnswerBtn = document.getElementById('submit-answer');
+        const nextQuestionBtn = document.getElementById('next-question');
+        const resultsAreaEl = document.getElementById('results-area');
+        const scoreTextEl = document.getElementById('score-text');
+
+        function loadQuiz() {
+            quizTitleEl.textContent = quizData.title;
+            quizInstructionsEl.textContent = quizData.instructions;
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            // Clear previous question and feedback
+            questionAreaEl.innerHTML = '';
+            submitAnswerBtn.style.display = 'inline-block';
+            nextQuestionBtn.style.display = 'none';
+            submitAnswerBtn.disabled = true; // Disabled until an option is selected
+
+            if (currentQuestionIndex < questions.length) {
+                const currentQuestion = questions[currentQuestionIndex];
+                const questionContainer = document.createElement('div');
+                questionContainer.classList.add('question-container');
+
+                const questionText = document.createElement('p');
+                questionText.classList.add('question-text');
+                questionText.textContent = `${currentQuestionIndex + 1}. ${currentQuestion.question}`;
+                questionContainer.appendChild(questionText);
+
+                const optionsList = document.createElement('ul');
+                optionsList.classList.add('options-list');
+
+                currentQuestion.options.forEach((option, index) => {
+                    const listItem = document.createElement('li');
+                    const radioInput = document.createElement('input');
+                    radioInput.type = 'radio';
+                    radioInput.name = `question-${currentQuestionIndex}`;
+                    radioInput.id = `q${currentQuestionIndex}-option${index}`;
+                    radioInput.value = index;
+                    radioInput.onchange = () => { submitAnswerBtn.disabled = false; };
+
+                    const label = document.createElement('label');
+                    label.htmlFor = `q${currentQuestionIndex}-option${index}`;
+                    label.textContent = option.text;
+
+                    listItem.appendChild(radioInput); // Radio button first
+                    listItem.appendChild(label);      // Then label
+                    optionsList.appendChild(listItem);
+                });
+
+                questionContainer.appendChild(optionsList);
+                const feedbackDiv = document.createElement('div');
+                feedbackDiv.id = `feedback-${currentQuestionIndex}`;
+                feedbackDiv.classList.add('feedback');
+                questionContainer.appendChild(feedbackDiv);
+
+                questionAreaEl.appendChild(questionContainer);
+            } else {
+                showResults();
+            }
+        }
+
+        function submitAnswer() {
+            const currentQuestion = questions[currentQuestionIndex];
+            const selectedOptionValue = document.querySelector(`input[name="question-${currentQuestionIndex}"]:checked`);
+
+            if (!selectedOptionValue) {
+                alert("Por favor, selecciona una opción.");
+                return;
+            }
+
+            const selectedOptionIndex = parseInt(selectedOptionValue.value);
+            const selectedOptionData = currentQuestion.options[selectedOptionIndex];
+            const feedbackDiv = document.getElementById(`feedback-${currentQuestionIndex}`);
+
+            if (selectedOptionData.isCorrect) {
+                feedbackDiv.textContent = selectedOptionData.feedback;
+                feedbackDiv.classList.remove('incorrect');
+                feedbackDiv.classList.add('correct');
+                score++;
+            } else {
+                feedbackDiv.textContent = selectedOptionData.feedback;
+                feedbackDiv.classList.remove('correct');
+                feedbackDiv.classList.add('incorrect');
+            }
+
+            document.querySelectorAll(`input[name="question-${currentQuestionIndex}"]`).forEach(input => {
+                input.disabled = true;
+            });
+            submitAnswerBtn.disabled = true;
+            submitAnswerBtn.style.display = 'none';
+            nextQuestionBtn.style.display = 'inline-block';
+
+            if (currentQuestionIndex === questions.length - 1) {
+                nextQuestionBtn.textContent = "Ver Resultados";
+            }
+        }
+
+        function loadNextQuestion() {
+            currentQuestionIndex++;
+            loadQuestion();
+        }
+
+        function showResults() {
+            questionAreaEl.style.display = 'none';
+            submitAnswerBtn.style.display = 'none';
+            nextQuestionBtn.style.display = 'none';
+            resultsAreaEl.style.display = 'block';
+            scoreTextEl.textContent = `Obtuviste ${score} de ${questions.length} preguntas correctas.`;
+        }
+
+        function restartQuiz() {
+            currentQuestionIndex = 0;
+            score = 0;
+            questionAreaEl.style.display = 'block';
+            resultsAreaEl.style.display = 'none';
+            nextQuestionBtn.textContent = "Siguiente Pregunta";
+            loadQuestion();
+        }
+
+        window.onload = loadQuiz;
+    </script>
+
+</body>
+</html>
