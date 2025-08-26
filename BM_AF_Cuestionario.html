@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuestionario Interactivo Aleatorio</title>
+    <style>
+        :root {
+            --primary-bg: #f0f4f8;
+            --container-bg: #ffffff;
+            --text-color: #333;
+            --header-color: #005a9c;
+            --border-color: #e0e0e0;
+            --correct-bg: #d4edda;
+            --correct-border: #c3e6cb;
+            --correct-text: #155724;
+            --incorrect-bg: #f8d7da;
+            --incorrect-border: #f5c6cb;
+            --incorrect-text: #721c24;
+            --button-bg: #007bff;
+            --button-hover-bg: #0056b3;
+            --button-text: #fff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .quiz-container {
+            background-color: var(--container-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            padding: 30px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            color: var(--header-color);
+            margin: 0 0 10px 0;
+            font-size: 2em;
+        }
+
+        #instructions {
+            font-size: 1.1em;
+            color: #555;
+        }
+
+        .question-block {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .question-block:last-of-type {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        
+        .question-text {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            background-color: #f9f9f9;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+
+        .option:hover {
+            background-color: #e9ecef;
+        }
+
+        .option input[type="radio"] {
+            margin-right: 12px;
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .option label {
+            flex-grow: 1;
+            cursor: pointer;
+        }
+
+        .feedback {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            display: none; /* Oculto por defecto */
+        }
+
+        .feedback.correct {
+            background-color: var(--correct-bg);
+            border: 1px solid var(--correct-border);
+            color: var(--correct-text);
+            display: block;
+        }
+
+        .feedback.incorrect {
+            background-color: var(--incorrect-bg);
+            border: 1px solid var(--incorrect-border);
+            color: var(--incorrect-text);
+            display: block;
+        }
+
+        #submit-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--button-text);
+            background-color: var(--button-bg);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: background-color 0.2s;
+        }
+
+        #submit-btn:hover {
+            background-color: var(--button-hover-bg);
+        }
+
+        #results {
+            margin-top: 30px;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: bold;
+            border-radius: 8px;
+            display: none; /* Oculto por defecto */
+        }
+        
+        #results.show {
+            display: block;
+            background-color: var(--primary-bg);
+            color: var(--header-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="quiz-container">
+        <header>
+            <h1 id="quiz-title"></h1>
+            <p id="instructions"></p>
+        </header>
+        
+        <form id="quiz-form">
+            <!-- Las preguntas se insertarán aquí dinámicamente y en orden aleatorio -->
+        </form>
+        
+        <button id="submit-btn">Verificar Respuestas</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Contenido del archivo 30b_Preguntas.json (corregido)
+        const quizData = {
+          "title": "Cuestionario integral: brazo mecánico y hoja de cálculo",
+          "instructions": "Responde las siguientes preguntas relacionadas con fórmulas, funciones, trigonometría y análisis en hojas de cálculo.",
+          "questions": [
+            { "question": "¿Qué representa la celda con la fórmula =RADIANES(B4)?", "options": [ { "text": "Convierte radianes a grados.", "isCorrect": false, "feedback": "Incorrecto. RADIANES convierte de grados a radianes, no al revés." }, { "text": "Convierte grados a radianes.", "isCorrect": true, "feedback": "Correcto. Esta función convierte grados a radianes para usar funciones trigonométricas." }, { "text": "Muestra el ángulo original.", "isCorrect": false, "feedback": "Incorrecto. El ángulo original está en B4, no en la función RADIANES." }, { "text": "Muestra el valor del seno del ángulo.", "isCorrect": false, "feedback": "Incorrecto. Esa función es SENO(), no RADIANES()." } ] },
+            { "question": "¿Qué tipo de referencia se utiliza en la fórmula =B4*$B$1?", "options": [ { "text": "Relativa", "isCorrect": false, "feedback": "Incorrecto. Solo B4 es relativa, pero $B$1 es absoluta." }, { "text": "Mixta", "isCorrect": true, "feedback": "Correcto. B4 es relativa y $B$1 es absoluta." }, { "text": "Absoluta", "isCorrect": false, "feedback": "Incorrecto. Solo parte de la fórmula es absoluta, no toda." }, { "text": "Circular", "isCorrect": false, "feedback": "Incorrecto. No hay autorreferencia en esta fórmula." } ] },
+            { "question": "¿Qué formato decimal se aplicó a las celdas de resultados?", "options": [ { "text": "Entero sin decimales", "isCorrect": false, "feedback": "Incorrecto. Se muestran valores como 8.67, lo que indica decimales." }, { "text": "Número con 2 decimales", "isCorrect": true, "feedback": "Correcto. El formato con 2 decimales mejora la presentación de los resultados." }, { "text": "Texto general", "isCorrect": false, "feedback": "Incorrecto. El formato general no controla la cantidad de decimales." }, { "text": "Moneda sin símbolo", "isCorrect": false, "feedback": "Incorrecto. El formato no es de tipo moneda." } ] },
+            { "question": "¿Qué efecto tiene aplicar la función SENO sobre un valor en grados sin convertirlo?", "options": [ { "text": "Devuelve el seno correctamente.", "isCorrect": false, "feedback": "Incorrecto. Excel espera el ángulo en radianes." }, { "text": "Devuelve un error de sintaxis.", "isCorrect": false, "feedback": "Incorrecto. Excel no da error, pero el valor será incorrecto." }, { "text": "Devuelve un valor incorrecto por no estar en radianes.", "isCorrect": true, "feedback": "Correcto. Debe usarse RADIANES() para convertir antes de aplicar SENO()." }, { "text": "Hace la conversión automáticamente.", "isCorrect": false, "feedback": "Incorrecto. Excel no convierte grados automáticamente." } ] },
+            { "question": "¿Qué relación hay entre el ángulo y la altura alcanzada en la gráfica?", "options": [ { "text": "Es una función lineal.", "isCorrect": false, "feedback": "Incorrecto. La gráfica tiene forma curva." }, { "text": "Es una función cuadrática.", "isCorrect": false, "feedback": "Incorrecto. No se representa como parábola." }, { "text": "Es una función trigonométrica.", "isCorrect": true, "feedback": "Correcto. Se basa en el seno del ángulo." }, { "text": "Es constante.", "isCorrect": false, "feedback": "Incorrecto. La altura cambia con el ángulo." } ] },
+            { "question": "¿Qué sucede si cambias una celda con referencia absoluta a relativa?", "options": [ { "text": "No cambia nada.", "isCorrect": false, "feedback": "Incorrecto. Afecta cómo se comporta la fórmula al copiarla." }, { "text": "La fórmula se ajusta al copiarla.", "isCorrect": true, "feedback": "Correcto. Las referencias relativas se ajustan automáticamente al copiar." }, { "text": "La fórmula deja de funcionar.", "isCorrect": false, "feedback": "Incorrecto. Solo cambia la forma en que se copia." }, { "text": "Se convierte en valor constante.", "isCorrect": false, "feedback": "Incorrecto. La fórmula sigue siendo dinámica." } ] },
+            { "question": "¿Cuál es el resultado de la fórmula =SENO(RADIANES(30))?", "options": [ { "text": "30", "isCorrect": false, "feedback": "Incorrecto. 30 es el valor en grados, no el resultado del seno." }, { "text": "0.5", "isCorrect": true, "feedback": "Correcto. SENO(30°) = 0.5 después de convertir a radianes." }, { "text": "1", "isCorrect": false, "feedback": "Incorrecto. El seno de 90° es 1, no el de 30°." }, { "text": "0.866", "isCorrect": false, "feedback": "Incorrecto. 0.866 es el seno de 60°, no de 30°." } ] },
+            { "question": "¿Qué tipo de gráfico es más adecuado para representar el cambio de altura respecto al ángulo?", "options": [ { "text": "Gráfico de barras", "isCorrect": false, "feedback": "Incorrecto. Es mejor para comparar categorías." }, { "text": "Gráfico de líneas o dispersión", "isCorrect": true, "feedback": "Correcto. Ideal para observar relaciones entre variables continuas." }, { "text": "Gráfico circular", "isCorrect": false, "feedback": "Incorrecto. Se usa para proporciones, no relaciones funcionales." }, { "text": "Histograma", "isCorrect": false, "feedback": "Incorrecto. Se usa para distribución de frecuencias." } ] },
+            { "question": "¿Qué sucede si omites la función RADIANES en un cálculo trigonométrico en Excel?", "options": [ { "text": "No hay efecto.", "isCorrect": false, "feedback": "Incorrecto. El resultado será incorrecto si usas grados directamente." }, { "text": "El resultado será correcto si el ángulo es pequeño.", "isCorrect": false, "feedback": "Incorrecto. Siempre se necesita convertir a radianes." }, { "text": "Obtienes un valor erróneo.", "isCorrect": true, "feedback": "Correcto. Excel interpreta el argumento de SENO en radianes." }, { "text": "Excel genera un error.", "isCorrect": false, "feedback": "Incorrecto. Excel no lanza error, solo da un resultado incorrecto." } ] },
+            { "question": "¿Qué operador aritmético se utiliza para elevar al cuadrado un número?", "options": [ { "text": "*", "isCorrect": false, "feedback": "Incorrecto. * es el operador de multiplicación." }, { "text": "^", "isCorrect": true, "feedback": "Correcto. El operador ^ se usa para elevar a una potencia." }, { "text": "%", "isCorrect": false, "feedback": "Incorrecto. % representa porcentaje, no potencia." }, { "text": "+", "isCorrect": false, "feedback": "Incorrecto. + es para suma." } ] },
+            { "question": "¿Qué sucede si usas referencias relativas y copias una fórmula hacia abajo?", "options": [ { "text": "La fórmula se mantiene igual.", "isCorrect": false, "feedback": "Incorrecto. Las referencias se ajustan automáticamente." }, { "text": "La celda cambia de formato.", "isCorrect": false, "feedback": "Incorrecto. El formato no se altera por copiar fórmulas." }, { "text": "La referencia cambia en relación a su nueva posición.", "isCorrect": true, "feedback": "Correcto. Las referencias relativas se ajustan según el desplazamiento." }, { "text": "Se produce un error de fórmula.", "isCorrect": false, "feedback": "Incorrecto. No hay error si la fórmula está bien escrita." } ] },
+            { "question": "¿Cuál de estas funciones devuelve el producto de un rango de celdas?", "options": [ { "text": "=PRODUCTO(A1:A3)", "isCorrect": true, "feedback": "Correcto. La función PRODUCTO multiplica los valores del rango." }, { "text": "=MULTIPLICAR(A1:A3)", "isCorrect": false, "feedback": "Incorrecto. No existe esta función en Excel." }, { "text": "=SUMA(A1*A2*A3)", "isCorrect": false, "feedback": "Incorrecto. SUMA se usa para sumar, no para multiplicar." }, { "text": "=A1*A2+A3", "isCorrect": false, "feedback": "Incorrecto. Esta es una expresión, no una función para rangos." } ] },
+            { "question": "¿Qué representa el valor h₂ en la simulación del brazo mecánico?", "options": [ { "text": "La altura del soporte vertical.", "isCorrect": false, "feedback": "Incorrecto. Esa es h₁, no h₂." }, { "text": "La proyección horizontal del brazo.", "isCorrect": false, "feedback": "Incorrecto. Es la componente vertical, no horizontal." }, { "text": "La componente vertical del brazo móvil.", "isCorrect": true, "feedback": "Correcto. h₂ = L × sen(θ)." }, { "text": "La longitud total del brazo.", "isCorrect": false, "feedback": "Incorrecto. La longitud del brazo es L, no h₂." } ] },
+            { "question": "¿Qué función se debe usar para sumar los valores de varias celdas?", "options": [ { "text": "=PRODUCTO()", "isCorrect": false, "feedback": "Incorrecto. PRODUCTO multiplica, no suma." }, { "text": "=SUMA()", "isCorrect": true, "feedback": "Correcto. SUMA permite agregar el contenido de celdas." }, { "text": "=CONCATENAR()", "isCorrect": false, "feedback": "Incorrecto. CONCATENAR une texto, no suma números." }, { "text": "=MEDIA()", "isCorrect": false, "feedback": "Incorrecto. MEDIA devuelve el promedio." } ] },
+            { "question": "¿Cuál es el comportamiento esperado de una gráfica de dispersión que relaciona ángulo y altura?", "options": [ { "text": "Una línea recta.", "isCorrect": false, "feedback": "Incorrecto. La relación es trigonométrica, no lineal." }, { "text": "Una parábola.", "isCorrect": false, "feedback": "Incorrecto. No se ajusta a una función cuadrática." }, { "text": "Una curva de tipo seno.", "isCorrect": true, "feedback": "Correcto. La altura se modela como h = L × sen(θ) + h₁." }, { "text": "Un gráfico constante.", "isCorrect": false, "feedback": "Incorrecto. La altura cambia con el ángulo." } ] },
+            { "question": "¿Qué fórmula representa correctamente la altura total alcanzada por el brazo mecánico?", "options": [ { "text": "=h₁ + L × SENO(θ)", "isCorrect": true, "feedback": "Correcto. La altura total es la suma del soporte más la componente vertical del brazo." }, { "text": "=L + h₁ × COS(θ)", "isCorrect": false, "feedback": "Incorrecto. Esta fórmula no representa la altura vertical." }, { "text": "=L × COS(θ) + h₁", "isCorrect": false, "feedback": "Incorrecto. COS(θ) da la componente horizontal, no la altura." }, { "text": "=SENO(h₁ + L)", "isCorrect": false, "feedback": "Incorrecto. No tiene sentido físico aplicar seno a esa suma." } ] },
+            { "question": "¿Qué representa un punto (θ, h) en la gráfica del brazo mecánico?", "options": [ { "text": "El ángulo de rotación y la proyección horizontal.", "isCorrect": false, "feedback": "Incorrecto. El eje vertical representa la altura, no la base." }, { "text": "El ángulo y la altura alcanzada por el extremo del brazo.", "isCorrect": true, "feedback": "Correcto. El punto representa el ángulo y la altura calculada." }, { "text": "La longitud del brazo y el ángulo base.", "isCorrect": false, "feedback": "Incorrecto. Es una relación entre ángulo y altura, no entre longitudes." }, { "text": "Una constante sin relación con el movimiento.", "isCorrect": false, "feedback": "Incorrecto. Es un punto funcional en la curva altura vs. ángulo." } ] },
+            { "question": "¿Qué representa el valor obtenido con =COS(RADIANES(θ))?", "options": [ { "text": "La altura alcanzada por el brazo.", "isCorrect": false, "feedback": "Incorrecto. La altura se obtiene con SENO, no con COSENO." }, { "text": "La proyección horizontal del brazo.", "isCorrect": true, "feedback": "Correcto. COSENO da la componente horizontal respecto al ángulo." }, { "text": "El ángulo del soporte vertical.", "isCorrect": false, "feedback": "Incorrecto. El soporte no varía su inclinación." }, { "text": "Una constante siempre igual a 1.", "isCorrect": false, "feedback": "Incorrecto. COS(θ) varía según el ángulo." } ] },
+            { "question": "¿Qué permite identificar una gráfica de dispersión respecto al análisis del brazo?", "options": [ { "text": "La proporcionalidad directa entre dos columnas.", "isCorrect": false, "feedback": "Incorrecto. No siempre hay proporcionalidad directa." }, { "text": "El comportamiento funcional entre variables.", "isCorrect": true, "feedback": "Correcto. Muestra la relación funcional entre ángulo y altura." }, { "text": "El número total de datos ingresados.", "isCorrect": false, "feedback": "Incorrecto. Eso se obtiene con otras funciones." }, { "text": "El color de las celdas según valor.", "isCorrect": false, "feedback": "Incorrecto. La gráfica no muestra el formato de celdas." } ] },
+            { "question": "¿Cuál es la diferencia entre referencias absolutas y relativas?", "options": [ { "text": "Las absolutas se ajustan al copiar, las relativas no.", "isCorrect": false, "feedback": "Incorrecto. Es al revés." }, { "text": "Las relativas cambian al copiar, las absolutas no.", "isCorrect": true, "feedback": "Correcto. Las absolutas usan $ y permanecen fijas." }, { "text": "No existe diferencia, ambas son dinámicas.", "isCorrect": false, "feedback": "Incorrecto. Su comportamiento es diferente al copiar fórmulas." }, { "text": "Las absolutas dan error si se mueven de lugar.", "isCorrect": false, "feedback": "Incorrecto. No provocan errores al copiar." } ] },
+            { "question": "¿Cuál es el propósito de convertir ángulos de grados a radianes antes de usar funciones trigonométricas?", "options": [ { "text": "Para obtener un resultado entero.", "isCorrect": false, "feedback": "Incorrecto. El resultado puede ser decimal." }, { "text": "Porque las funciones trigonométricas en Excel trabajan con radianes.", "isCorrect": true, "feedback": "Correcto. Excel espera radianes como argumento para funciones como SENO." }, { "text": "Porque los grados no se usan en hojas de cálculo.", "isCorrect": false, "feedback": "Incorrecto. Los grados se usan, pero deben convertirse para trigonometría." }, { "text": "Para evitar errores de formato en las celdas.", "isCorrect": false, "feedback": "Incorrecto. No tiene relación con el formato." } ] },
+            { "question": "¿Qué función se utiliza para generar una secuencia de ángulos de 0° a 90° en pasos de 10°?", "options": [ { "text": "SERIE()", "isCorrect": false, "feedback": "Incorrecto. Esa función no existe como tal en Excel." }, { "text": "LLENAR SERIE", "isCorrect": true, "feedback": "Correcto. El comando LLENAR → SERIE permite generar una secuencia numérica." }, { "text": "REPETIR()", "isCorrect": false, "feedback": "Incorrecto. REPETIR solo repite texto." }, { "text": "ORDENAR()", "isCorrect": false, "feedback": "Incorrecto. ORDENAR organiza datos, no genera series." } ] },
+            { "question": "¿Qué sucede si una celda contiene la fórmula =SENO(PI()/2)?", "options": [ { "text": "Devuelve un error.", "isCorrect": false, "feedback": "Incorrecto. La fórmula es válida." }, { "text": "Devuelve 0.", "isCorrect": false, "feedback": "Incorrecto. El seno de 90° (PI/2 radianes) es 1." }, { "text": "Devuelve 1.", "isCorrect": true, "feedback": "Correcto. SENO(PI()/2) = 1 porque equivale a 90°." }, { "text": "Devuelve PI().", "isCorrect": false, "feedback": "Incorrecto. Solo se usa como argumento dentro de la función." } ] },
+            { "question": "¿Qué representa la constante PI() en Excel?", "options": [ { "text": "Una función de suma.", "isCorrect": false, "feedback": "Incorrecto. No suma valores." }, { "text": "El número 3.1416 aproximadamente.", "isCorrect": true, "feedback": "Correcto. PI() representa el valor matemático de π." }, { "text": "Una fórmula para obtener porcentajes.", "isCorrect": false, "feedback": "Incorrecto. PI no se relaciona con porcentajes directamente." }, { "text": "Una constante sin utilidad práctica.", "isCorrect": false, "feedback": "Incorrecto. PI es esencial en funciones trigonométricas." } ] },
+            { "question": "¿Cuál es la unidad que debe usarse al aplicar funciones como SENO, COSENO o TANGENTE en Excel?", "options": [ { "text": "Grados", "isCorrect": false, "feedback": "Incorrecto. Excel requiere radianes, no grados." }, { "text": "Porcentaje", "isCorrect": false, "feedback": "Incorrecto. No aplica porcentajes en trigonometría." }, { "text": "Radianes", "isCorrect": true, "feedback": "Correcto. Todas las funciones trigonométricas en Excel trabajan en radianes." }, { "text": "Decimales", "isCorrect": false, "feedback": "Incorrecto. No es una unidad angular válida." } ] }
+          ]
+        };
+
+        // --- INICIO DE LA LÓGICA DEL CUESTIONARIO ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const quizForm = document.getElementById('quiz-form');
+            const quizTitleEl = document.getElementById('quiz-title');
+            const instructionsEl = document.getElementById('instructions');
+            const submitBtn = document.getElementById('submit-btn');
+            const resultsEl = document.getElementById('results');
+
+            /**
+             * Baraja un array en su lugar usando el algoritmo Fisher-Yates.
+             * @param {Array} array El array a barajar.
+             */
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+            }
+
+            // 1. Obtener una copia de las preguntas del JSON
+            let questionsToDisplay = [...quizData.questions];
+            
+            // 2. Barajar las preguntas
+            shuffleArray(questionsToDisplay);
+            
+            // 3. Cargar título e instrucciones
+            quizTitleEl.textContent = quizData.title;
+            instructionsEl.textContent = quizData.instructions;
+
+            /**
+             * Construye el HTML del cuestionario a partir del array de preguntas (ya barajado).
+             */
+            function buildQuiz() {
+                let output = '';
+                questionsToDisplay.forEach((questionData, questionIndex) => {
+                    // Barajar también las opciones para cada pregunta
+                    shuffleArray(questionData.options);
+
+                    output += `
+                        <div class="question-block" id="q-block-${questionIndex}">
+                            <p class="question-text">${questionIndex + 1}. ${questionData.question}</p>
+                            <div class="options-container">
+                    `;
+                    questionData.options.forEach((option, optionIndex) => {
+                        output += `
+                            <div class="option">
+                                <input type="radio" 
+                                       name="question${questionIndex}" 
+                                       id="q${questionIndex}o${optionIndex}" 
+                                       value="${optionIndex}"
+                                       data-correct="${option.isCorrect}"
+                                       data-feedback="${option.feedback}">
+                                <label for="q${questionIndex}o${optionIndex}">${option.text}</label>
+                            </div>
+                        `;
+                    });
+                    output += `
+                            </div>
+                            <div class="feedback" id="feedback-${questionIndex}"></div>
+                        </div>
+                    `;
+                });
+                quizForm.innerHTML = output;
+            }
+
+            /**
+             * Verifica las respuestas, muestra el feedback y la puntuación final.
+             */
+            function checkAnswers() {
+                let score = 0;
+                
+                questionsToDisplay.forEach((questionData, questionIndex) => {
+                    const feedbackEl = document.getElementById(`feedback-${questionIndex}`);
+                    const selectedOptionInput = quizForm.querySelector(`input[name="question${questionIndex}"]:checked`);
+                    
+                    if (selectedOptionInput) {
+                        const isCorrect = selectedOptionInput.dataset.correct === 'true';
+                        feedbackEl.textContent = selectedOptionInput.dataset.feedback;
+                        
+                        if (isCorrect) {
+                            score++;
+                            feedbackEl.className = 'feedback correct';
+                        } else {
+                            feedbackEl.className = 'feedback incorrect';
+                        }
+                    } else {
+                        feedbackEl.textContent = 'No has seleccionado ninguna respuesta para esta pregunta.';
+                        feedbackEl.className = 'feedback incorrect';
+                    }
+                });
+
+                // Mostrar la puntuación final
+                resultsEl.innerHTML = `Tu puntuación es: ${score} de ${questionsToDisplay.length} correctas.`;
+                resultsEl.className = 'results show';
+            }
+
+            // 4. Construir el cuestionario en el DOM
+            buildQuiz();
+
+            // 5. Añadir el evento al botón de verificar
+            submitBtn.addEventListener('click', checkAnswers);
+        });
+
+    </script>
+</body>
+</html>
