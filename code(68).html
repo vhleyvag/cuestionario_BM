@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Interactivo con Cuestionario</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4; 
+            overflow: hidden;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+        .main-header {
+            text-align: center;
+            padding: 15px;
+            background-color: #333;
+            color: white;
+            margin: 0 0 10px 0;
+            flex-shrink: 0;
+        }
+        .main-content-wrapper {
+            display: flex;
+            flex-grow: 1;
+            padding: 0 10px 10px 10px;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .left-main-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .spreadsheet-section {
+            background-color: white; /* CLAVE: Fondo sólido para el contenedor con scroll */
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto; 
+            flex-basis: 60%;
+            min-height: 200px;
+        }
+        .spreadsheet-section h2 { 
+            margin-top: 0;
+            margin-bottom: 10px; 
+            flex-shrink: 0;
+            /* H2 ya no es sticky para simplificar, el thead se pega a top:0 del .spreadsheet-section */
+        }
+
+        .graph-section-left {
+            background-color: white;
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            flex-basis: 40%;
+            min-height: 250px;
+        }
+        .graph-section-left h2 {
+            text-align: center;
+            margin-top: 0;
+            font-size: 1.2em;
+            color: #333;
+            flex-shrink: 0;
+        }
+        #chart-container-left {
+            position: relative;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        .right-main-column {
+            flex: 1;
+            background-color: white;
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .right-main-column h2#quiz-main-title {
+            margin-top: 0;
+            flex-shrink: 0;
+            text-align: center;
+        }
+        .questionnaire-content {
+            flex-grow: 1;
+        }
+
+        /* --- Estilos del Cuestionario --- */
+        .quiz-question-block { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 5px; background-color: #f9f9f9; }
+        .quiz-question-block p.question-text { font-weight: bold; margin-top: 0; margin-bottom: 10px; }
+        .quiz-options-list { list-style-type: none; padding-left: 0; }
+        .quiz-options-list li { margin-bottom: 8px; }
+        .quiz-options-list label { cursor: pointer; display: flex; align-items: center; }
+        .quiz-options-list input[type="radio"] { margin-right: 8px; }
+        .feedback-message { margin-top: 8px; padding: 8px; border-radius: 4px; font-size: 0.9em; }
+        .feedback-message.correct { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .feedback-message.incorrect { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        #submit-quiz-btn { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; font-size: 1em; display: block; margin-left: auto; margin-right: auto; }
+        #submit-quiz-btn:hover { background-color: #0056b3; }
+        #quiz-score { text-align: center; font-weight: bold; font-size: 1.2em; margin-top: 20px; padding: 10px; border-radius: 5px; }
+        #quiz-score.good-score { background-color: #d4edda; color: #155724; }
+        #quiz-score.average-score { background-color: #fff3cd; color: #856404; }
+        #quiz-score.bad-score { background-color: #f8d7da; color: #721c24; }
+        /* --- Fin Estilos del Cuestionario --- */
+
+
+        .table-wrapper {
+            flex-grow: 1;
+        }
+        table#spreadsheet { 
+            border-collapse: collapse; 
+            width: 100%;
+            table-layout: fixed;
+            font-size: 0.85em;
+        }
+        #spreadsheet th, 
+        #spreadsheet td { 
+            border: 1px solid #ccc; 
+            padding: 5px;
+            text-align: left; 
+            word-wrap: break-word;
+            background-clip: padding-box; 
+        }
+        #spreadsheet th.row-header, 
+        #spreadsheet th.col-header { 
+            text-align: center; 
+        }
+
+        /* --- INICIO ESTILOS STICKY PARA TABLA (REVISIÓN FINALÍSIMA) --- */
+        /* THEAD STICKY */
+        #spreadsheet thead th {
+            position: sticky;
+            top: 0; 
+            z-index: 12; /* Muy alto para estar sobre todo */
+        }
+        #spreadsheet thead th.col-header { 
+            background-color: #e0e0e0 !important; 
+        }
+        #spreadsheet thead th.row-header { /* Esquina superior izquierda */
+            background-color: #e9e9e9 !important; 
+            left: 0; 
+            z-index: 13; /* El más alto de todos */
+        }
+
+        /* TBODY STICKY ROWS y CELDAS */
+        /* Alturas estimadas: thead: 28px, tbody row: 33px, empty-row: 18px */
+
+        /* Fila 1 del tbody */
+        #spreadsheet tbody tr:nth-child(1) > th.row-header { position: sticky; left: 0; top: 28px; background-color: #e9e9e9 !important; z-index: 11; }
+        #spreadsheet tbody tr:nth-child(1) > td.label { position: sticky; top: 28px; background-color: #f0f0f0 !important; z-index: 10; }
+        #spreadsheet tbody tr:nth-child(1) > td:nth-child(3) { position: sticky; top: 28px; background-color: white !important; z-index: 10; } /* Celda Input B1 */
+        #spreadsheet tbody tr:nth-child(1) > td#cell-C1 { position: sticky; top: 28px; background-color: #fff9c4 !important; z-index: 10; }
+        #spreadsheet tbody tr:nth-child(1) > td#cell-D1 { position: sticky; top: 28px; background-color: #fff9c4 !important; z-index: 10; }
+
+        /* Fila 2 del tbody */
+        #spreadsheet tbody tr:nth-child(2) > th.row-header { position: sticky; left: 0; top: 61px; background-color: #e9e9e9 !important; z-index: 9; }
+        #spreadsheet tbody tr:nth-child(2) > td.label { position: sticky; top: 61px; background-color: #f0f0f0 !important; z-index: 8; }
+        #spreadsheet tbody tr:nth-child(2) > td:nth-child(3) { position: sticky; top: 61px; background-color: white !important; z-index: 8; } /* Celda Input B2 */
+        #spreadsheet tbody tr:nth-child(2) > td#cell-C2 { position: sticky; top: 61px; background-color: #fff9c4 !important; z-index: 8; }
+        #spreadsheet tbody tr:nth-child(2) > td#cell-D2 { position: sticky; top: 61px; background-color: #fff9c4 !important; z-index: 8; }
+
+        /* Fila 3 del tbody (empty-row) */
+        #spreadsheet tbody tr:nth-child(3).empty-row > th.row-header { position: sticky; left: 0; top: 94px; background-color: #e9e9e9 !important; z-index: 7; }
+        #spreadsheet tbody tr:nth-child(3).empty-row > td { position: sticky; top: 94px; background-color: #fff9c4 !important; z-index: 6; }
+
+        /* Fila 4 del tbody */
+        #spreadsheet tbody tr:nth-child(4) > th.row-header { position: sticky; left: 0; top: 112px; background-color: #e9e9e9 !important; z-index: 5; }
+        #spreadsheet tbody tr:nth-child(4) > td.label { position: sticky; top: 112px; background-color: #f0f0f0 !important; z-index: 4; }
+        /* Las celdas C4 y D4 en la fila 4 son labels según el HTML */
+        #spreadsheet tbody tr:nth-child(4) > td#cell-C4.label { background-color: #f0f0f0 !important; } 
+        #spreadsheet tbody tr:nth-child(4) > td#cell-D4.label { background-color: #f0f0f0 !important; } 
+
+
+        /* Encabezados de fila para filas NO sticky (A5 en adelante) */
+        #spreadsheet tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)) > th.row-header {
+            position: sticky;
+            left: 0;
+            background-color: #e9e9e9 !important; 
+            z-index: 1; 
+        }
+        /* --- FIN ESTILOS STICKY PARA TABLA --- */
+
+        /* Estilos base de celdas para restaurar colores y alineación */
+        td.label {
+            background-color: #f0f0f0; 
+            font-weight: bold;
+            text-align: left; 
+        }
+        input[type="number"] { 
+            width: 95%;
+            padding: 4px;
+            border: 1px solid #ddd; 
+            border-radius: 3px;
+            box-sizing: border-box;
+            font-size: 1em;
+            background-color: white; 
+            text-align: right; 
+        }
+        
+        /* Reglas más específicas para alineación de datos numéricos en filas 5+ */
+        #spreadsheet tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)) td.output-cell, 
+        #spreadsheet tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)) td.input-data-cell {
+            font-family: monospace;
+            text-align: right !important; 
+        }
+        /* Mantener el fondo de output-cell para filas 5+ */
+        #spreadsheet tbody tr:not(:nth-child(1)):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)) td.output-cell {
+             background-color: #e0f7fa;
+        }
+        
+        td[contenteditable="true"] { /* Para C1,D1,C2,D2 y Fila 3 */
+            background-color: #fff9c4; 
+            text-align: left; 
+        }
+        td[contenteditable="true"]:focus {
+            outline: 2px solid #007bff;
+            background-color: white;
+        }
+        .empty-row td {
+            height: 18px; 
+        }
+
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <h1>Dashboard Interactivo: Simulación y Cuestionario</h1>
+    </header>
+
+    <div class="main-content-wrapper">
+        <!-- Columna Izquierda Principal (Hoja + Gráfica) -->
+        <div class="left-main-column">
+            <section class="spreadsheet-section">
+                <h2>Datos y Cálculos</h2>
+                <div class="table-wrapper">
+                    <table id="spreadsheet">
+                        <colgroup>
+                            <col style="width: 35px;">
+                            <col style="width: 130px;">
+                            <col style="width: 100px;">
+                            <col style="width: 80px;">
+                            <col style="width: 80px;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th class="row-header"></th>
+                                <th class="col-header">A</th>
+                                <th class="col-header">B</th>
+                                <th class="col-header">C</th>
+                                <th class="col-header">D</th>
+                            </tr>
+                        </thead>
+                        <tbody id="spreadsheet-body">
+                            <tr> <!-- Fila 1 del tbody -->
+                                <th class="row-header">1</th>
+                                <td class="label">Longitud del brazo L (cm)</td>
+                                <td><input type="number" id="input-B1" step="any" value="7"></td>
+                                <td contenteditable="true" id="cell-C1"></td> 
+                                <td contenteditable="true" id="cell-D1"></td> 
+                            </tr>
+                            <tr> <!-- Fila 2 del tbody -->
+                                <th class="row-header">2</th>
+                                <td class="label">Longitud de la base h1 (cm)</td>
+                                <td><input type="number" id="input-B2" step="any" value="2"></td>
+                                <td contenteditable="true" id="cell-C2"></td> 
+                                <td contenteditable="true" id="cell-D2"></td> 
+                            </tr>
+                            <tr class="empty-row"> <!-- Fila 3 del tbody -->
+                                <th class="row-header">3</th>
+                                <td id="cell-A3" contenteditable="true"></td>
+                                <td id="cell-B3" contenteditable="true"></td>
+                                <td id="cell-C3" contenteditable="true"></td>
+                                <td id="cell-D3" contenteditable="true"></td>
+                            </tr>
+                            <tr> <!-- Fila 4 del tbody -->
+                                <th class="row-header">4</th>
+                                <td class="label" id="label-A4">Ángulo (deg)</td>
+                                <td class="label" id="label-B4">Ángulo (rad)</td>
+                                <td class="label" id="label-C4">h<sub>2</sub> (cm)</td>
+                                <td class="label" id="label-D4">h<sub>T</sub> (cm)</td>
+                            </tr>
+                            <!-- Filas de la hoja de cálculo se generan con JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="graph-section-left">
+                <h2>Gráfica: h<sub>T</sub> vs Ángulo</h2>
+                <div id="chart-container-left">
+                    <canvas id="myChartLeft"></canvas>
+                </div>
+            </section>
+        </div>
+
+        <!-- Columna Derecha Principal (Cuestionario) -->
+        <aside class="right-main-column">
+            <h2 id="quiz-main-title">Cargando Cuestionario...</h2>
+            <div class="questionnaire-content">
+                <form id="quiz-form">
+                    <!-- Las preguntas del cuestionario se insertarán aquí por JavaScript -->
+                </form>
+                <button type="button" id="submit-quiz-btn" style="display:none;">Evaluar Cuestionario</button>
+                <div id="quiz-score"></div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // --- INICIO CÓDIGO HOJA DE CÁLCULO Y GRÁFICA ---
+        const tbody = document.getElementById('spreadsheet-body');
+        const inputL = document.getElementById('input-B1');
+        const inputH1 = document.getElementById('input-B2');
+        const totalRowsStatic = 4;
+        const numDataRows = 181;
+        let myChartInstanceLeft = null;
+        const chartCanvasLeft = document.getElementById('myChartLeft');
+        const chartConfig = {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'hT (cm)', data: [], borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)', showLine: true,
+                    tension: 0.1, pointRadius: 2, pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Ángulo (deg)' } },
+                    y: { title: { display: true, text: 'hT (cm)' }, beginAtZero: true }
+                },
+                plugins: { legend: { position: 'top' }, title: { display: false } }
+            }
+        };
+
+        function actualizarCalculosFilasYGrafica() {
+            const L_val = parseFloat(inputL.value) || 0;
+            const h1_val = parseFloat(inputH1.value) || 0;
+            const newDataPointsForChart = [];
+            for (let i = 0; i < numDataRows; i++) {
+                const currentRowNumber = totalRowsStatic + 1 + i;
+                const cellA_deg_element = document.getElementById(`cell-A${currentRowNumber}`);
+                const cellB_rad_element = document.getElementById(`cell-B${currentRowNumber}`);
+                const cellC_h2_element = document.getElementById(`cell-C${currentRowNumber}`);
+                const cellD_hT_element = document.getElementById(`cell-D${currentRowNumber}`);
+                if (!cellA_deg_element) continue; 
+                const degrees = parseFloat(cellA_deg_element.textContent);
+                const radians = parseFloat(cellB_rad_element.textContent);
+                if (!isNaN(radians) && cellC_h2_element && cellD_hT_element) {
+                    const h2_calc = L_val * Math.sin(radians);
+                    cellC_h2_element.textContent = h2_calc.toFixed(3);
+                    const hT_calc = h1_val + h2_calc;
+                    cellD_hT_element.textContent = hT_calc.toFixed(3);
+                    if (!isNaN(degrees) && !isNaN(hT_calc)) {
+                        newDataPointsForChart.push({ x: degrees, y: hT_calc });
+                    }
+                } else if (cellC_h2_element && cellD_hT_element) {
+                    cellC_h2_element.textContent = "Error";
+                    cellD_hT_element.textContent = "Error";
+                }
+            }
+            if (myChartInstanceLeft) {
+                myChartInstanceLeft.data.datasets[0].data = newDataPointsForChart;
+                myChartInstanceLeft.update();
+            }
+        }
+
+        function generarEstructuraTabla() {
+            for (let i = 0; i < numDataRows; i++) {
+                const degrees = i * 0.5;
+                const radians = degrees * (Math.PI / 180);
+                const currentRowNumber = totalRowsStatic + 1 + i; 
+                const row = document.createElement('tr');
+                const thRowNum = document.createElement('th');
+                thRowNum.className = 'row-header';
+                thRowNum.textContent = currentRowNumber;
+                row.appendChild(thRowNum);
+                const tdDeg = document.createElement('td');
+                tdDeg.id = `cell-A${currentRowNumber}`;
+                tdDeg.className = 'input-data-cell'; 
+                tdDeg.textContent = degrees.toFixed(1);
+                row.appendChild(tdDeg);
+                const tdRad = document.createElement('td');
+                tdRad.id = `cell-B${currentRowNumber}`;
+                tdRad.className = 'input-data-cell output-cell'; 
+                tdRad.textContent = radians.toFixed(5);
+                row.appendChild(tdRad);
+                const tdH2 = document.createElement('td');
+                tdH2.id = `cell-C${currentRowNumber}`;
+                tdH2.className = 'output-cell'; 
+                row.appendChild(tdH2);
+                const tdHT = document.createElement('td');
+                tdHT.id = `cell-D${currentRowNumber}`;
+                tdHT.className = 'output-cell'; 
+                row.appendChild(tdHT);
+                tbody.appendChild(row);
+            }
+        }
+        // --- FIN CÓDIGO HOJA DE CÁLCULO Y GRÁFICA ---
+
+
+        // --- INICIO CÓDIGO CUESTIONARIO ---
+        const quizData = { 
+          "quiz_title": "Cuestionario teórico aplicado: Modelo del brazo en Excel",
+          "questions": [
+            {
+              "question": "¿Cuál de las siguientes afirmaciones es verdadera sobre la serie de datos en la columna A?",
+              "options": [
+                { "text": "Es una serie aritmética con paso constante.", "correct": true, "feedback": "¡Correcto! Los valores en la columna A aumentan de 0.5 en 0.5, lo que define una serie aritmética." },
+                { "text": "Es una serie exponencial.", "correct": false, "feedback": "Incorrecto. No es exponencial, ya que no crece multiplicativamente." },
+                { "text": "Solo contiene enteros.", "correct": false, "feedback": "Incorrecto. La serie contiene números como 0.5, 1.5, etc., no solo enteros." },
+                { "text": "Solo llega hasta 60°.", "correct": false, "feedback": "Incorrecto. La serie llega hasta 90°, no 60°." }
+              ]
+            },
+            {
+              "question": "¿Cuál es el procedimiento para construir una serie aritmética con paso constante en una hoja de cálculo?",
+              "options": [
+                { "text": "Escribir el primer valor y luego copiarlo hacia abajo.", "correct": false, "feedback": "Incorrecto. Copiar el mismo valor no genera una serie." },
+                { "text": "Escribir el primer valor, luego usar una fórmula que sume el incremento al valor anterior y arrastrar hacia abajo.", "correct": true, "feedback": "¡Bien hecho! Este es el método más eficiente y dinámico para crear una serie aritmética." },
+                { "text": "Usar la función SERIE().", "correct": false, "feedback": "Incorrecto. Excel no tiene una función llamada SERIE()." },
+                { "text": "Escribir manualmente todos los valores de la serie.", "correct": false, "feedback": "Incorrecto. Este método es poco práctico y propenso a errores." }
+              ]
+            },
+            {
+              "question": "¿Por qué es necesario convertir los ángulos de la columna A a radianes antes de usar funciones trigonométricas en Excel?",
+              "options": [
+                { "text": "Porque Excel convierte automáticamente los radianes a grados.", "correct": false, "feedback": "Incorrecto. Excel no realiza conversiones automáticas de unidades en funciones trigonométricas." },
+                { "text": "Porque las funciones trigonométricas en Excel requieren radianes como entrada.", "correct": true, "feedback": "¡Exacto! Excel espera que el argumento de funciones como SENO() esté en radianes, no en grados." },
+                { "text": "Porque los radianes son más fáciles de interpretar.", "correct": false, "feedback": "Incorrecto. La facilidad de interpretación no afecta el funcionamiento técnico de la función." },
+                { "text": "Porque las funciones trigonométricas no aceptan grados ni radianes.", "correct": false, "feedback": "Incorrecto. Las funciones trigonométricas aceptan radianes, no grados." }
+              ]
+            },
+            {
+              "question": "¿Para qué se utiliza la función SENO() en el contexto de esta hoja de cálculo?",
+              "options": [
+                { "text": "Para calcular la longitud total del brazo.", "correct": false, "feedback": "Incorrecto. La longitud total se obtiene al sumar h1 y h2, no con SENO()." },
+                { "text": "Para convertir grados en radianes.", "correct": false, "feedback": "Incorrecto. Para eso se usa la función RADIANES()." },
+                { "text": "Para obtener la componente vertical (altura) del brazo según el ángulo.", "correct": true, "feedback": "¡Correcto! SENO() devuelve la altura proyectada del brazo respecto al ángulo dado." },
+                { "text": "Para graficar los resultados obtenidos.", "correct": false, "feedback": "Incorrecto. SENO() no genera gráficas, solo valores numéricos." }
+              ]
+            },
+            {
+              "question": "¿Por qué se utiliza una referencia absoluta como B$1 en las fórmulas de la columna C?",
+              "options": [
+                { "text": "Porque se quiere evitar el uso de otras funciones.", "correct": false, "feedback": "Incorrecto. Las referencias absolutas no sustituyen funciones." },
+                { "text": "Para permitir que al copiar la fórmula hacia abajo, se conserve el vínculo con la celda que contiene la longitud del brazo.", "correct": true, "feedback": "¡Muy bien! Esto asegura que se mantenga el valor de B1 sin importar la fila donde se copie la fórmula." },
+                { "text": "Porque Excel no permite referencias relativas en funciones trigonométricas.", "correct": false, "feedback": "Incorrecto. Excel permite ambos tipos de referencias." },
+                { "text": "Porque se usa solo cuando se trabaja con números decimales.", "correct": false, "feedback": "Incorrecto. El tipo de número no determina el tipo de referencia." }
+              ]
+            },
+            {
+              "question": "¿Qué representa la columna D en esta hoja de cálculo?",
+              "options": [
+                { "text": "El ángulo total girado por el brazo.", "correct": false, "feedback": "Incorrecto. La columna D no representa un ángulo." },
+                { "text": "La suma del ángulo en radianes y la altura h2.", "correct": false, "feedback": "Incorrecto. No se suman unidades diferentes como radianes y centímetros." },
+                { "text": "La altura total del brazo, que resulta de sumar h1 (base) y h2 (altura calculada por el ángulo).", "correct": true, "feedback": "¡Correcto! La columna D representa la altura total combinando la base con la parte móvil." },
+                { "text": "La distancia horizontal desde el origen hasta la punta del brazo.", "correct": false, "feedback": "Incorrecto. Esa distancia no se calcula en esta hoja." }
+              ]
+            },
+            {
+              "question": "¿Qué variables se representan en la gráfica elaborada en la hoja de cálculo?",
+              "options": [
+                { "text": "El ángulo en grados en el eje X y la altura total hT en el eje Y.", "correct": true, "feedback": "¡Correcto! La gráfica muestra cómo varía la altura total hT conforme cambia el ángulo del brazo." },
+                { "text": "El tiempo en el eje X y la velocidad angular en el eje Y.", "correct": false, "feedback": "Incorrecto. No se está trabajando con tiempo ni velocidad angular en este modelo." },
+                { "text": "La longitud del brazo en el eje X y la altura h2 en el eje Y.", "correct": false, "feedback": "Incorrecto. La longitud del brazo es constante, no una variable graficada." },
+                { "text": "El ángulo en radianes en el eje X y la altura base h1 en el eje Y.", "correct": false, "feedback": "Incorrecto. h1 es constante y no se grafica directamente." }
+              ]
+            },
+            {
+              "question": "¿Cuál es la finalidad de elaborar una gráfica en esta actividad de hoja de cálculo?",
+              "options": [
+                { "text": "Comprobar que la fórmula está bien escrita.", "correct": false, "feedback": "Incorrecto. Aunque puede ayudar a detectar errores, esa no es la finalidad principal." },
+                { "text": "Visualizar la relación entre el ángulo del brazo y su altura total.", "correct": true, "feedback": "¡Exacto! La gráfica permite identificar cómo se comporta la altura del brazo al variar el ángulo." },
+                { "text": "Sustituir los cálculos hechos en la hoja.", "correct": false, "feedback": "Incorrecto. La gráfica complementa los cálculos, no los reemplaza." },
+                { "text": "Comparar dos funciones trigonométricas.", "correct": false, "feedback": "Incorrecto. Solo se graficó una función (seno) aplicada al ángulo." }
+              ]
+            },
+            {
+              "question": "¿Cuál es el procedimiento correcto para elaborar la gráfica de altura total hT en función del ángulo en una hoja de cálculo?",
+              "options": [
+                { "text": "Seleccionar los valores de las columnas A y D, insertar gráfico de dispersión y ajustar títulos.", "correct": true, "feedback": "¡Correcto! Este es el procedimiento adecuado para representar gráficamente la relación entre ángulo y altura total." },
+                { "text": "Insertar una gráfica circular y luego copiar los datos de las columnas B y C.", "correct": false, "feedback": "Incorrecto. La gráfica circular no es adecuada para representar relaciones entre variables numéricas continuas." },
+                { "text": "Copiar los valores a otra hoja, crear una tabla dinámica y luego insertar gráfico de columnas.", "correct": false, "feedback": "Incorrecto. Las tablas dinámicas son útiles para análisis de datos, pero no necesarias aquí." },
+                { "text": "Utilizar una macro para graficar automáticamente todos los datos de la hoja.", "correct": false, "feedback": "Incorrecto. No se requiere programación para generar este tipo de gráfico básico." }
+              ]
+            }
+          ]
+        };
+
+        const quizForm = document.getElementById('quiz-form');
+        const quizMainTitle = document.getElementById('quiz-main-title');
+        const submitQuizBtn = document.getElementById('submit-quiz-btn');
+        const quizScoreDiv = document.getElementById('quiz-score');
+
+        function renderQuiz() {
+            if (!quizData || !quizForm) return;
+            quizMainTitle.textContent = quizData.quiz_title;
+            let quizHTML = '';
+
+            quizData.questions.forEach((questionData, questionIndex) => {
+                quizHTML += `<div class="quiz-question-block" id="question-block-${questionIndex}">`;
+                quizHTML += `<p class="question-text">${questionIndex + 1}. ${questionData.question}</p>`;
+                quizHTML += `<ul class="quiz-options-list">`;
+                questionData.options.forEach((option, optionIndex) => {
+                    quizHTML += `<li>
+                                    <label for="q${questionIndex}o${optionIndex}">
+                                        <input type="radio" name="question${questionIndex}" id="q${questionIndex}o${optionIndex}" value="${optionIndex}">
+                                        ${option.text}
+                                    </label>
+                                    <div class="feedback-message" id="feedback-q${questionIndex}o${optionIndex}" style="display:none;"></div>
+                                 </li>`;
+                });
+                quizHTML += `</ul></div>`;
+            });
+            quizForm.innerHTML = quizHTML;
+            submitQuizBtn.style.display = 'block';
+        }
+
+        function evaluateQuiz() {
+            let score = 0;
+            quizData.questions.forEach((questionData, questionIndex) => {
+                const selectedOptionElement = quizForm.querySelector(`input[name="question${questionIndex}"]:checked`);
+                
+                questionData.options.forEach((opt, optIdx) => {
+                    const feedbackDiv = document.getElementById(`feedback-q${questionIndex}o${optIdx}`);
+                    if(feedbackDiv) feedbackDiv.style.display = 'none';
+                });
+
+                if (selectedOptionElement) {
+                    const selectedOptionIndex = parseInt(selectedOptionElement.value);
+                    const chosenOptionData = questionData.options[selectedOptionIndex];
+                    const feedbackDiv = document.getElementById(`feedback-q${questionIndex}o${selectedOptionIndex}`);
+
+                    if (feedbackDiv) {
+                        feedbackDiv.textContent = chosenOptionData.feedback;
+                        feedbackDiv.className = 'feedback-message'; 
+                        if (chosenOptionData.correct) {
+                            score++;
+                            feedbackDiv.classList.add('correct');
+                        } else {
+                            feedbackDiv.classList.add('incorrect');
+                        }
+                        feedbackDiv.style.display = 'block';
+                    }
+                } else {
+                    const questionBlock = document.getElementById(`question-block-${questionIndex}`);
+                    if(questionBlock) {
+                        let noAnswerFeedback = questionBlock.querySelector('.no-answer-feedback');
+                        if (!noAnswerFeedback) {
+                            noAnswerFeedback = document.createElement('div');
+                            noAnswerFeedback.className = 'feedback-message incorrect no-answer-feedback';
+                            noAnswerFeedback.textContent = 'No has seleccionado una respuesta para esta pregunta.';
+                            questionBlock.appendChild(noAnswerFeedback);
+                        }
+                        noAnswerFeedback.style.display = 'block';
+                    }
+                }
+            });
+
+            quizScoreDiv.textContent = `Tu puntuación: ${score} de ${quizData.questions.length}`;
+            const percentage = (score / quizData.questions.length) * 100;
+            quizScoreDiv.className = 'quiz-score';
+            if (percentage >= 75) {
+                quizScoreDiv.classList.add('good-score');
+            } else if (percentage >= 50) {
+                quizScoreDiv.classList.add('average-score');
+            } else {
+                quizScoreDiv.classList.add('bad-score');
+            }
+            quizScoreDiv.style.display = 'block';
+            submitQuizBtn.textContent = 'Evaluado';
+            submitQuizBtn.disabled = true;
+        }
+        // --- FIN CÓDIGO CUESTIONARIO ---
+
+        // --- INICIO CARGA GENERAL ---
+        window.addEventListener('load', () => {
+            generarEstructuraTabla();
+            if (chartCanvasLeft) {
+                myChartInstanceLeft = new Chart(chartCanvasLeft.getContext('2d'), chartConfig);
+            }
+            actualizarCalculosFilasYGrafica(); 
+            
+            inputL.addEventListener('input', actualizarCalculosFilasYGrafica);
+            inputH1.addEventListener('input', actualizarCalculosFilasYGrafica);
+
+            renderQuiz();
+            if (submitQuizBtn) {
+                submitQuizBtn.addEventListener('click', evaluateQuiz);
+            }
+        });
+        // --- FIN CARGA GENERAL ---
+    </script>
+</body>
+</html>
