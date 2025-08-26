@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoja de Cálculo y Gráfica en Columnas (Scroll y Límite Alto)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        html, body { /* Asegurar que html y body ocupen toda la altura */
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            text-align: center;
+            padding: 15px;
+            background-color: #333;
+            color: white;
+            margin: 0 0 10px 0;
+            flex-shrink: 0; /* Evita que el título se encoja */
+        }
+        .main-container {
+            display: flex;
+            flex-grow: 1; /* Ocupa el espacio vertical restante */
+            padding: 0 10px 10px 10px;
+            gap: 10px;
+            overflow: hidden; /* Evita scroll en el main-container si las secciones lo manejan */
+        }
+        .left-section, .right-section {
+            flex: 1;
+            background-color: white;
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+            display: flex; /* Usar flex para controlar el contenido interno */
+            flex-direction: column; /* Contenido de arriba a abajo */
+        }
+
+        /* Sección Izquierda (Hoja de Cálculo) */
+        .left-section {
+            overflow-y: auto; /* Habilita el scroll vertical SOLO para esta sección */
+            /* No es necesario max-height aquí si el body y main-container están bien configurados */
+        }
+        .left-section h2 {
+            margin-top: 0;
+            flex-shrink: 0; /* Evita que el título de la sección se encoja */
+        }
+        .table-container { /* Contenedor para la tabla dentro de la sección izquierda */
+            flex-grow: 1; /* Permite que la tabla ocupe espacio y se scrollee si es necesario */
+            /* overflow-y: auto; /* Opcional: si quieres scroll solo en la tabla y no en toda la sección */
+        }
+
+        /* Sección Derecha (Gráfica) */
+        .right-section h2 {
+            text-align: center;
+            margin-top: 0;
+            font-size: 1.2em;
+            color: #333;
+            flex-shrink: 0;
+        }
+        #chart-container {
+            position: relative;
+            width: 100%; /* Ocupa el ancho de la sección derecha */
+            max-height: 700px; /* Límite de altura para el contenedor de la gráfica */
+            flex-grow: 1; /* Permite que crezca hasta max-height */
+            min-height: 300px; /* Altura mínima */
+        }
+
+        /* Estilos de la tabla */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: fixed;
+            font-size: 0.85em;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 5px;
+            text-align: left;
+            word-wrap: break-word;
+        }
+        th.row-header {
+            background-color: #e9e9e9;
+            font-weight: bold;
+            text-align: center;
+            position: sticky; /* Encabezados de fila fijos */
+            left: 0;
+            z-index: 1; /* Para que esté sobre las celdas al hacer scroll horizontal (si lo hubiera) */
+        }
+        thead th.col-header { /* Encabezados de columna fijos */
+            background-color: #e0e0e0;
+            font-weight: bold;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 2; /* Sobre los encabezados de fila y celdas */
+        }
+         /* Esquina superior izquierda fija */
+        thead th.row-header {
+            position: sticky;
+            top: 0;
+            left: 0;
+            z-index: 3; /* Sobre todo */
+        }
+
+        td.label {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        input[type="number"] {
+            width: 95%;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .output-cell, .input-data-cell {
+            font-family: monospace;
+            text-align: right;
+        }
+        .output-cell {
+            background-color: #e0f7fa;
+        }
+        td[contenteditable="true"] {
+            background-color: #fff9c4;
+        }
+        td[contenteditable="true"]:focus {
+            outline: 2px solid #007bff;
+            background-color: white;
+        }
+        .empty-row td {
+            height: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hoja de Cálculo y Gráfica Interactiva</h1>
+    <div class="main-container">
+        <div class="left-section">
+            <h2>Datos y Cálculos</h2>
+            <div class="table-container">
+                <table id="spreadsheet">
+                    <colgroup>
+                        <col style="width: 35px;">  <!-- Números de fila -->
+                        <col style="width: 130px;"> <!-- A -->
+                        <col style="width: 100px;"> <!-- B -->
+                        <col style="width: 80px;">  <!-- C -->
+                        <col style="width: 80px;">  <!-- D -->
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th class="row-header"></th> <!-- Celda esquina -->
+                            <th class="col-header">A</th>
+                            <th class="col-header">B</th>
+                            <th class="col-header">C</th>
+                            <th class="col-header">D</th>
+                        </tr>
+                    </thead>
+                    <tbody id="spreadsheet-body">
+                        <!-- Fila 1 -->
+                        <tr>
+                            <th class="row-header">1</th>
+                            <td class="label">Longitud del brazo L (cm)</td>
+                            <td><input type="number" id="input-B1" step="any" value="7"></td>
+                            <td contenteditable="true" id="cell-C1"></td>
+                            <td contenteditable="true" id="cell-D1"></td>
+                        </tr>
+                        <!-- Fila 2 -->
+                        <tr>
+                            <th class="row-header">2</th>
+                            <td class="label">Longitud de la base h1 (cm)</td>
+                            <td><input type="number" id="input-B2" step="any" value="2"></td>
+                            <td contenteditable="true" id="cell-C2"></td>
+                            <td contenteditable="true" id="cell-D2"></td>
+                        </tr>
+                        <!-- Fila 3 (Vacía) -->
+                        <tr class="empty-row">
+                            <th class="row-header">3</th>
+                            <td id="cell-A3" contenteditable="true"></td>
+                            <td id="cell-B3" contenteditable="true"></td>
+                            <td id="cell-C3" contenteditable="true"></td>
+                            <td id="cell-D3" contenteditable="true"></td>
+                        </tr>
+                        <!-- Fila 4 (Títulos) -->
+                        <tr>
+                            <th class="row-header">4</th>
+                            <td class="label" id="label-A4">Ángulo (deg)</td>
+                            <td class="label" id="label-B4">Ángulo (rad)</td>
+                            <td class="label" id="label-C4">h<sub>2</sub> (cm)</td>
+                            <td class="label" id="label-D4">h<sub>T</sub> (cm)</td>
+                        </tr>
+                        <!-- Filas 5 a 185 se generarán con JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="right-section">
+            <h2>Gráfica: h<sub>T</sub> vs Ángulo</h2>
+            <div id="chart-container">
+                <canvas id="myChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tbody = document.getElementById('spreadsheet-body');
+        const inputL = document.getElementById('input-B1');
+        const inputH1 = document.getElementById('input-B2');
+
+        const totalRowsStatic = 4;
+        const numDataRows = 181;
+
+        let myChart = null;
+        const chartCanvas = document.getElementById('myChart');
+
+        const chartConfig = {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'hT (cm)',
+                    data: [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                    showLine: true,
+                    tension: 0.1,
+                    pointRadius: 2,
+                    pointHoverRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        title: { display: true, text: 'Ángulo (deg)' }
+                    },
+                    y: {
+                        title: { display: true, text: 'hT (cm)' },
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: false }
+                }
+            }
+        };
+
+        function actualizarCalculosFilasYGrafica() {
+            const L_val = parseFloat(inputL.value) || 0;
+            const h1_val = parseFloat(inputH1.value) || 0;
+            const newDataPointsForChart = [];
+
+            for (let i = 0; i < numDataRows; i++) {
+                const currentRowNumber = totalRowsStatic + 1 + i;
+                const cellA_deg_element = document.getElementById(`cell-A${currentRowNumber}`);
+                const cellB_rad_element = document.getElementById(`cell-B${currentRowNumber}`);
+                const cellC_h2_element = document.getElementById(`cell-C${currentRowNumber}`);
+                const cellD_hT_element = document.getElementById(`cell-D${currentRowNumber}`);
+
+                const degrees = parseFloat(cellA_deg_element.textContent);
+                const radians = parseFloat(cellB_rad_element.textContent);
+
+                if (!isNaN(radians) && cellC_h2_element && cellD_hT_element) {
+                    const h2_calc = L_val * Math.sin(radians);
+                    cellC_h2_element.textContent = h2_calc.toFixed(3);
+                    const hT_calc = h1_val + h2_calc;
+                    cellD_hT_element.textContent = hT_calc.toFixed(3);
+                    if (!isNaN(degrees) && !isNaN(hT_calc)) {
+                        newDataPointsForChart.push({ x: degrees, y: hT_calc });
+                    }
+                } else if (cellC_h2_element && cellD_hT_element) {
+                    cellC_h2_element.textContent = "Error";
+                    cellD_hT_element.textContent = "Error";
+                }
+            }
+
+            if (myChart) {
+                myChart.data.datasets[0].data = newDataPointsForChart;
+                myChart.update();
+            }
+        }
+
+        function generarEstructuraTabla() {
+            for (let i = 0; i < numDataRows; i++) {
+                const degrees = i * 0.5;
+                const radians = degrees * (Math.PI / 180);
+                const currentRowNumber = totalRowsStatic + 1 + i;
+                const row = document.createElement('tr');
+                const thRowNum = document.createElement('th');
+                thRowNum.className = 'row-header';
+                thRowNum.textContent = currentRowNumber;
+                row.appendChild(thRowNum);
+                const tdDeg = document.createElement('td');
+                tdDeg.id = `cell-A${currentRowNumber}`;
+                tdDeg.className = 'input-data-cell';
+                tdDeg.textContent = degrees.toFixed(1);
+                row.appendChild(tdDeg);
+                const tdRad = document.createElement('td');
+                tdRad.id = `cell-B${currentRowNumber}`;
+                tdRad.className = 'input-data-cell output-cell';
+                tdRad.textContent = radians.toFixed(5);
+                row.appendChild(tdRad);
+                const tdH2 = document.createElement('td');
+                tdH2.id = `cell-C${currentRowNumber}`;
+                tdH2.className = 'output-cell';
+                row.appendChild(tdH2);
+                const tdHT = document.createElement('td');
+                tdHT.id = `cell-D${currentRowNumber}`;
+                tdHT.className = 'output-cell';
+                row.appendChild(tdHT);
+                tbody.appendChild(row);
+            }
+        }
+
+        inputL.addEventListener('input', actualizarCalculosFilasYGrafica);
+        inputH1.addEventListener('input', actualizarCalculosFilasYGrafica);
+
+        window.addEventListener('load', () => {
+            generarEstructuraTabla();
+            if (chartCanvas) {
+                myChart = new Chart(chartCanvas.getContext('2d'), chartConfig);
+            }
+            actualizarCalculosFilasYGrafica();
+        });
+    </script>
+
+</body>
+</html>
